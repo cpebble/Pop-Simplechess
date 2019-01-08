@@ -69,10 +69,11 @@ type Game(p1:Player, p2:Player) =
     
   member self.isValidMove (move:Move) : bool = 
     let _isAvailableMove (_piece:chessPiece) (_move:Move) = 
-      _piece.candiateRelativeMoves 
-      |> _board.RelativeToAbsolute (fst move)
+      _piece.candiateRelativeMoves
+      |> List.map (fun el -> el.Head) // Stored as a list list for some reaseon
+      |> _board.relativeToAbsolute (fst move)
       |> fun a -> 
-        match List.tryFind (fun mv -> mv = move) a with
+        match List.tryFind (fun mv -> mv = (snd move)) a with
           | None -> false 
           | Some _ -> true
 

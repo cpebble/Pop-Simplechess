@@ -41,6 +41,16 @@ and Board () =
     // Choose absolute positions that are on the board
     |> List.choose validPositionWrap
   /// Board is indexed using .[,] notation
+  member this.relativeToAbsolute (pos : Position) (lst : Position list) : Position list =
+    let addPair (a : int, b : int) (c : int, d : int) : Position = 
+      (a+c,b+d)
+    // Add origin and delta positions
+    List.map (addPair pos) lst
+    // Choose absolute positions that are on the board
+    |> List.choose validPositionWrap
+
+  
+  
   member this.Item
     with get(a : int, b : int) = _array.[a, b]
     and set(a : int, b : int) (p : chessPiece option) = 

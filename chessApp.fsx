@@ -67,7 +67,23 @@ type Game(p1:Player, p2:Player) =
     // TODO Check om kongen har available moves
     false 
     
-  member self.isValidMove (move:Move) : bool = false
+  member self.isValidMove (move:Move) : bool = 
+    let _isAvailableMove (_piece:chessPiece) (_move:Move) = 
+      _piece.candiateRelativeMoves 
+      |> _board.RelativeToAbsolute (fst move)
+      |> fun a -> 
+        match List.tryFind (fun mv -> mv = move) a with
+          | None -> false 
+          | Some _ -> true
+
+    let piece : chessPiece option = 
+      _board.[(move |> fst |> fst), (move |> snd |> snd)]
+    if piece.IsNone then 
+      false 
+    elif _isAvailableMove piece.Value move |> not then 
+      false 
+    else
+      true
   member self.run (curPlayer:Player) (board:Board) = 
     match self.isGameOver board with 
     | true -> 0

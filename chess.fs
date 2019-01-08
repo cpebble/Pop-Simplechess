@@ -41,7 +41,7 @@ and Board () =
     // Choose absolute positions that are on the board
     |> List.choose validPositionWrap
   /// Board is indexed using .[,] notation
-  member this.relativeToAbsolute (pos : Position) (lst : Position list) : Position list =
+  member this.relativeToAbsolutePos (pos : Position) (lst : Position list) : Position list =
     let addPair (a : int, b : int) (c : int, d : int) : Position = 
       (a+c,b+d)
     // Add origin and delta positions

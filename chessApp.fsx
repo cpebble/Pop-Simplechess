@@ -71,7 +71,7 @@ type Game(p1:Player, p2:Player) =
     let _isAvailableMove (_piece:chessPiece) (_move:Move) = 
       _piece.candiateRelativeMoves
       |> List.map (fun el -> el.Head) // Stored as a list list for some reaseon
-      |> _board.relativeToAbsolute (fst move)
+      |> _board.relativeToAbsolutePos (fst move)
       |> fun a -> 
         match List.tryFind (fun mv -> mv = (snd move)) a with
           | None -> false 

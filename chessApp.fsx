@@ -17,7 +17,7 @@ type Player(color) =
 type Human(color) = 
   inherit Player()
   member self.isValidMoveString (m: string) = 
-    let format = RegularExpressions.Regex "[a-f][1-8][a-f][1-8]|quit"
+    let format = RegularExpressions.Regex "[a-h][1-8][a-h][1-8]|quit"
     format.IsMatch m
   override this.nextMove () =
     // TODO Læs fra en terminal 
@@ -65,7 +65,7 @@ type Game(p1:Player, p2:Player) =
 
   member this.parseMoveString (moveString:string) : Move = 
     // Tager input a4a6 -> 0,3 , 0,5
-    let format = RegularExpressions.Regex "([a-f])([1-8])([a-f])([1-8])"
+    let format = RegularExpressions.Regex "([a-h])([1-8])([a-h])([1-8])"
     let fileString = "abcdefgh"
     let rankString = "12345678"
     let matches = format.Match moveString
@@ -89,12 +89,8 @@ type Game(p1:Player, p2:Player) =
     (srcRank, srcFile), (targetRank, targetFile)
 
 
-  member self.nextPlayer = 
-    let _player = ref 0
-    _playerIndex = _player |> ignore
-    fun () -> 
-      _player := (!_player + 1) % 2
-      _players.[!_player]
+  member self.switchPlayer () = 
+    _playerIndex := (!_playerIndex + 1) % 2
   member self.isGameOver (board:Board) : bool =
     // TODO Check om kongen har available moves
     let mutable king_count = 0
@@ -108,40 +104,65 @@ type Game(p1:Player, p2:Player) =
         true
     else
         false
+
+  member self.getAbsoluteMoves (origo:Position) (p:chessPiece) = 
+    p.candiateRelativeMoves |> List.concat
+    |> List.map (self.relativeToAbsolutePos origo)
     
-  member self.isValidMove (move:Move) : bool = 
+  member self.relativeToAbsolutePos (origo:Position) (rPos:Position) = 
+    ( (fst origo) + (fst rPos), ( (snd origo) + (snd rPos) )  )
+  member self.isValidMove (move:Move) (p:Player) : bool = 
+    let _isWithinBounds (target:Position) = 
+      ( (fst target) < 8 && (fst target) >= 0) && ( (snd target ) < 8 && (snd target) >= 0)
+    
     let _isAvailableMove (_piece:chessPiece) (_move:Move) = 
-      _piece.candiateRelativeMoves
-      |> List.map (fun el -> el.Head) // Stored as a list list for some reaseon
-      |> _board.relativeToAbsolutePos (fst _move)
-      |> fun a -> 
-        match List.tryFind (fun mv -> mv = (snd _move)) a with
-          | None -> false 
-          | Some _ -> true
+      // let relativeMoves =_piece.candiateRelativeMoves  
+      // let expandedMoves = List.concat relativeMoves
+      // let absoluteMoves = List.map (fun x -> self.relativeToAbsolutePos (fst _move) x) expandedMoves
+      let absoluteMoves = self.getAbsoluteMoves (fst _move) _piece
+      match List.tryFind (fun x -> x = (snd _move) ) absoluteMoves with 
+      | Some x -> true 
+      | None -> false
+
     let _isKingAndThreatened (_piece:chessPiece) (_move:Move) =
       if _piece.nameOfType = "king" |> not then false 
       else 
-        let move = snd _move 
-        let allPieces = _pieces //indeholder alle brikker på boardet 
-        let mutable dangerPos = []
-        let mutable is_threatened = false
-        for p in allPieces do
-          for m in p.candiateRelativeMoves do
-            if m.Head = move && p <> _piece then
-              is_threatened <- true
-        is_threatened 
-        // Check if move is threatened
+        let mutable isThreatened = false
+        // Get a list of chess pieces
+        let mutable pieceList = []
+        for i = 0 to 7 do 
+          for j = 0 to 7 do 
+            match _board.[i,j] with 
+            | None -> ()
+            | Some piece -> pieceList <- (piece, i, j) :: pieceList
+        
+        // Filter out our own pieces
+        let filteredPieceList = List.filter (fun (piece:chessPiece,_,_) -> piece.color <> p.color ) pieceList 
+        
+        // loop through opponent pieces
+        for (p,i,j) in filteredPieceList do 
+          // If it has an absolute move on our _move then isThreatened = true
+          let availableMoves = self.getAbsoluteMoves (i,j) p 
+          for m in availableMoves do 
+            if m = (snd _move) then
+              printfn "Move %A is threatened by %A on space %A" _move p.color (i,j)
+              isThreatened <- true
+        isThreatened
     let piece : chessPiece option = 
-      _board.[(move |> fst |> fst), (move |> snd |> snd)]
+      _board.[(move |> fst |> fst), (move |> fst |> snd)]
     if piece.IsNone then
-      printfn "Piece is none. %A" ((move |> fst |> fst), (move |> snd |> snd))
-      false 
+      printfn "Piece is none. %A" ((move |> fst |> fst), (move |> fst |> snd))
+      false
+    elif piece.Value.color <> p.color then 
+      printfn "You can't move another players pawn"
+      false
+    elif _isWithinBounds (snd move) |> not then 
+      printfn "Is not within bounds"
+      false
     elif _isAvailableMove piece.Value move |> not then 
-      printfn "Piece doesn't have this move as available. %A\nAvailable position:" ((move |> snd |> fst), (move |> snd |> snd)) 
-      for i in piece.Value.availableMoves do 
-         printf "%A\t" i 
+      printfn "Piece doesn't have this move as available. %A" ((move |> snd |> fst), (move |> snd |> snd)) 
       false 
-    elif _isKingAndThreatened piece.Value move |> not then
+    elif _isKingAndThreatened piece.Value move  then
       printfn "King tries to move on threaten"
       false
     else
@@ -152,28 +173,35 @@ type Game(p1:Player, p2:Player) =
   member self.run (curPlayer:Player) (board:Board) =
     printfn "%A" board 
     match self.isGameOver board with 
-    | true -> self.nextPlayer (); !_playerIndex
+    | true -> self.switchPlayer () |> ignore; !_playerIndex
     | false -> 
     let move = curPlayer.nextMove ()
     if move = "quit" then
       -1
     else 
       match self.parseMoveString move with 
-      | x when self.isValidMove x -> 
+      | x when self.isValidMove x curPlayer -> 
         x
-        |> (fun (target,source) -> printf "Move is walid, target %A src %A" target source ; target, source)
+        |> (fun (target,source) -> printfn "Move is valid, target %A src %A" target source ; target, source)
         ||> _board.move 
         |> ignore
-        self.run (self.nextPlayer () ) board
+        self.switchPlayer ()
+        self.run _players.[!_playerIndex]  board
       | _ -> self.run curPlayer board
-
-
 
 let p1 = Human (White) :> Player
 let p2 = Human (Black) :> Player
 
 let game = Game (p1,p2)
 do game.newGame () |> printfn "%d"
+
+// /// FUCK YOU PARSEMOVE FFS I KILL U NOW TEST
+// printfn "%A" (game.parseMoveString "a1a2")
+// printfn "%A" (game.parseMoveString "a2a1")
+// printfn "%A" (game.parseMoveString "a2a1")
+// printfn "%A" (game.parseMoveString "h8a7")
+
+
 // Create a game
 (*let board = Chess.Board () // Create a board
 // Pieces are kept in an array for easy testing

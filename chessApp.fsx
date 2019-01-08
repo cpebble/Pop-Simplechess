@@ -91,6 +91,19 @@ type Game(p1:Player, p2:Player) =
 
   member self.switchPlayer () = 
     _playerIndex := (!_playerIndex + 1) % 2
+  member self.isGameOver (board:Board) : bool =
+    // TODO Check om kongen har available moves
+    let mutable king_count = 0
+    for i=0 to 7 do
+        for j= 0 to 7 do
+            match board.Item (i,j) with
+            | Some x ->
+                if x :? king then king_count <- king_count + 1                   
+            | _ -> ()
+    if king_count < 2 then
+        true
+    else
+        false
 
   member self.getAbsoluteMoves (origo:Position) (p:chessPiece) = 
     p.candiateRelativeMoves |> List.concat
@@ -155,32 +168,11 @@ type Game(p1:Player, p2:Player) =
     else
       true
 
-  member self.isGameOver (board:Board) (P:Player) : bool =
-    let mutable isOver = false
-    for i=0 to 7 do
-      for j= 0 to 7 do
-          match board.Item (i,j) with
-          | Some x when (x :? king) -> 
-              match x.position with
-              | Some i ->
-                let position_lst = fst (board.getVacantNNeighbours x)
-                let mutable move_lst = [(i,i)]
-                
-                for entry in position_lst do
-                  move_lst <- (i,entry)::move_lst
-                
-                match (List.filter (fun elem -> self.isValidMove elem P) move_lst) with
-                |[] -> isOver <- true
-                |_ -> ()
-              |_ -> ()
-          |_ -> ()
-    isOver
-
   member self.board 
     with get () = _board
   member self.run (curPlayer:Player) (board:Board) =
     printfn "%A" board 
-    match self.isGameOver board curPlayer with 
+    match self.isGameOver board with 
     | true -> self.switchPlayer () |> ignore; !_playerIndex
     | false -> 
     let move = curPlayer.nextMove ()

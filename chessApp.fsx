@@ -63,17 +63,26 @@ type Game(p1:Player, p2:Player) =
     fun () -> 
       _player := (!_player + 1) % 2
       _players.[!_player]
-  member self.isGameOver (b:Board) : bool =
+  member self.isGameOver (board:Board) : bool =
     // TODO Check om kongen har available moves
-    false 
+    let mutable king_count = 0
+    for i=0 to 7 do
+        for j= 0 to 7 do
+            match board.Item (i,j) with
+            | Some x ->
+                if x :? king then king_count <- king_count + 1                   
+    if king_count < 2 then
+        true
+    else
+        false
     
   member self.isValidMove (move:Move) : bool = 
     let _isAvailableMove (_piece:chessPiece) (_move:Move) = 
       _piece.candiateRelativeMoves
       |> List.map (fun el -> el.Head) // Stored as a list list for some reaseon
-      |> _board.relativeToAbsolutePos (fst move)
+      |> _board.relativeToAbsolutePos (fst _move)
       |> fun a -> 
-        match List.tryFind (fun mv -> mv = (snd move)) a with
+        match List.tryFind (fun mv -> mv = (snd _move)) a with
           | None -> false 
           | Some _ -> true
 

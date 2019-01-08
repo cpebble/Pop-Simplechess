@@ -47,10 +47,7 @@ and Board () =
     // Add origin and delta positions
     List.map (addPair pos) lst
     // Choose absolute positions that are on the board
-    |> List.choose validPositionWrap
-
-  
-  
+    |> List.choose validPositionWrap    
   member this.Item
     with get(a : int, b : int) = _array.[a, b]
     and set(a : int, b : int) (p : chessPiece option) = 

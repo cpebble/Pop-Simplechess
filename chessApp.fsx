@@ -29,6 +29,7 @@ type Human(color) =
       this.nextMove ()
   override this.color = color
 
+let isNone (obj:'a option) = match obj with |Some x -> false | None -> true
 
 // Game class
 type Game(p1:Player, p2:Player) =
@@ -69,7 +70,7 @@ type Game(p1:Player, p2:Player) =
     let fileString = "abcdefgh"
     let rankString = "12345678"
     let matches = format.Match moveString
-    printfn "%A" matches.Groups
+    // printfn "%A" matches.Groups
     let srcFile =(
       matches.Groups.[1].Value 
       |> fileString.IndexOf 
@@ -100,17 +101,17 @@ type Game(p1:Player, p2:Player) =
               match x.position with
               | Some i ->
                 let position_lst = fst (board.getVacantNNeighbours x)
-                let mutable move_lst = [(i,i)]
+                let mutable move_lst = []
                 
                 for entry in position_lst do
                   move_lst <- (i,entry)::move_lst
                
-                match (List.filter (fun elem -> self.isValidMove elem P) move_lst) with
+                match (List.filter (fun elem -> self.isInvalidMove elem P |> isNone) move_lst) with
                 |[] -> isOver <- true
                 |_ -> ()
               |_ -> ()
           |_ -> ()
-    printfn "%A" (isOver)
+    // printfn "%A" (isOver)
     isOver
 
   member self.getAbsoluteMoves (origo:Position) (p:chessPiece) = 
@@ -119,7 +120,9 @@ type Game(p1:Player, p2:Player) =
     
   member self.relativeToAbsolutePos (origo:Position) (rPos:Position) = 
     ( (fst origo) + (fst rPos), ( (snd origo) + (snd rPos) )  )
-  member self.isValidMove (move:Move) (p:Player) : bool = 
+
+    // This is string option so we can return with a status code
+  member self.isInvalidMove (move:Move) (p:Player) : string option = 
     let _isWithinBounds (target:Position) = 
       ( (fst target) < 8 && (fst target) >= 0) && ( (snd target ) < 8 && (snd target) >= 0)
     
@@ -153,28 +156,26 @@ type Game(p1:Player, p2:Player) =
           let availableMoves = self.getAbsoluteMoves (i,j) p 
           for m in availableMoves do 
             if m = (snd _move) then
-              printfn "Move %A is threatened by %A on space %A" _move p.color (i,j)
+              // printfn "Move %A is threatened by %A on space %A" _move p.color (i,j)
               isThreatened <- true
         isThreatened
     let piece : chessPiece option = 
       _board.[(move |> fst |> fst), (move |> fst |> snd)]
     if piece.IsNone then
-      printfn "Piece is none. %A" ((move |> fst |> fst), (move |> fst |> snd))
-      false
+      Some (sprintf "Piece is none. %A" ((move |> fst |> fst), (move |> fst |> snd)))
+      
     elif piece.Value.color <> p.color then 
-      printfn "You can't move another players pawn"
-      false
+      sprintf "You can't move another players pawn" |> Some
+      
     elif _isWithinBounds (snd move) |> not then 
-      printfn "Is not within bounds"
-      false
+      sprintf "Is not within bounds" |> Some
     elif _isAvailableMove piece.Value move |> not then 
-      printfn "Piece doesn't have this move as available. %A" ((move |> snd |> fst), (move |> snd |> snd)) 
-      false 
+      sprintf "Piece doesn't have this move as available. %A" ((move |> snd |> fst), (move |> snd |> snd)) |> Some
+      
     elif _isKingAndThreatened piece.Value move  then
-      printfn "King tries to move on threaten"
-      false
+      sprintf "King tries to move on threaten"|> Some
     else
-      true
+      None
 
   member self.board 
     with get () = _board
@@ -188,43 +189,19 @@ type Game(p1:Player, p2:Player) =
       -1
     else 
       match self.parseMoveString move with 
-      | x when self.isValidMove x curPlayer -> 
+      | x when self.isInvalidMove x curPlayer |> isNone -> 
         x
         |> (fun (target,source) -> printfn "Move is valid, target %A src %A" target source ; target, source)
         ||> _board.move 
         |> ignore
         self.switchPlayer ()
         self.run _players.[!_playerIndex]  board
-      | _ -> self.run curPlayer board
+      | x -> 
+        printfn "Invalid move: %s" (self.isInvalidMove x curPlayer).Value
+        self.run curPlayer board
 
 let p1 = Human (White) :> Player
 let p2 = Human (Black) :> Player
 
 let game = Game (p1,p2)
 do game.newGame () |> printfn "%d"
-
-// /// FUCK YOU PARSEMOVE FFS I KILL U NOW TEST
-// printfn "%A" (game.parseMoveString "a1a2")
-// printfn "%A" (game.parseMoveString "a2a1")
-// printfn "%A" (game.parseMoveString "a2a1")
-// printfn "%A" (game.parseMoveString "h8a7")
-
-
-// Create a game
-(*let board = Chess.Board () // Create a board
-// Pieces are kept in an array for easy testing
-let pieces = [|
-  king (White) :> chessPiece;
-  rook (White) :> chessPiece;
-  king (Black) :> chessPiece |]
-// Place pieces on the board
-board.[0,0] <- Some pieces.[0]
-board.[1,1] <- Some pieces.[1]
-board.[4,1] <- Some pieces.[2]
-printfn "%A" board
-Array.iter (printPiece board) pieces
-
-// Make moves
-board.move (1,1) (3,1) // Moves a piece from (1,1) to (3,1)
-printfn "%A" board
-Array.iter (printPiece board) pieces*)

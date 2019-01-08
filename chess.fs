@@ -23,7 +23,8 @@ type chessPiece(color : Color) =
   member this.availableMoves (board : Board) : (Position list * chessPiece list) =
     board.getVacantNNeighbours this (*//§\label{chessPieceEnd}§*)
 /// A board §\label{chessBoardBegin}§
-and Board () =
+and Board (DeadPieceFunc: chessPiece -> Position -> unit) =
+  let _deadPieceFunc = DeadPieceFunc
   let _array = Collections.Array2D.create<chessPiece option> 8 8 None
   /// Wrap a position as option type
   let validPositionWrap (pos : Position) : Position option =
@@ -80,6 +81,7 @@ and Board () =
     boardStr 0 0
   /// Move piece by specifying source and target coordinates
   member this.move (source : Position) (target : Position) : unit =
+    if this.[fst target, snd target].IsSome then _deadPieceFunc this.[fst target, snd target].Value target
     this.[fst target, snd target] <- this.[fst source, snd source]
     this.[fst source, snd source] <- None
   /// Find the tuple of empty squares and first neighbour if any.

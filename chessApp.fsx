@@ -30,8 +30,28 @@ type Human() =
 // Game class
 type Game(p1:Player, p2:Player) =
   let _players = [p1;p2]
-  let _player = 0
-  let _board = Chess.Board () 
+  let _playerIndex = ref 0
+  let mutable _pieces = [
+    king(White) :> chessPiece
+    king(Black) :> chessPiece
+    rook(White) :> chessPiece
+    rook(White) :> chessPiece
+    rook(Black) :> chessPiece
+    rook(Black) :> chessPiece
+
+  ]
+  let pieceIsDead (piece:chessPiece) (pos:Position) = 
+    let rec remove i l =
+      match i, l with
+      | 0, x::xs -> xs
+      | i, x::xs -> x::remove (i - 1) xs
+      | i, [] -> failwith "index out of range"
+    let pieceIndex = List.findIndex (fun p -> p = piece) _pieces
+    _pieces <- remove pieceIndex _pieces
+    ()
+  let _board = Chess.Board (pieceIsDead) 
+  
+  
 
   member this.parseMoveString (moveString:string) : Move = 
     // Tager input a4a6 -> 0,3 , 0,5
@@ -60,6 +80,7 @@ type Game(p1:Player, p2:Player) =
 
   member self.nextPlayer = 
     let _player = ref 0
+    _playerIndex = _player |> ignore
     fun () -> 
       _player := (!_player + 1) % 2
       _players.[!_player]
@@ -85,18 +106,33 @@ type Game(p1:Player, p2:Player) =
         match List.tryFind (fun mv -> mv = (snd _move)) a with
           | None -> false 
           | Some _ -> true
-
+    let _isKingAndThreatened (_piece:chessPiece) (_move:Move) =
+      if _piece.nameOfType = "king" |> not then false 
+      else 
+        let move = snd _move 
+        let allPieces = _pieces //indeholder alle brikker på boardet 
+        let mutable dangerPos = []
+        let mutable is_threatened = false
+        for p in allPieces do
+          for m in p.candiateRelativeMoves do
+            if m.Head = move then
+              is_threatened <- true
+        is_threatened 
+        // Check if move is threatened
     let piece : chessPiece option = 
       _board.[(move |> fst |> fst), (move |> snd |> snd)]
     if piece.IsNone then 
       false 
     elif _isAvailableMove piece.Value move |> not then 
       false 
+    elif _isKingAndThreatened piece.Value move |> not then
+      false
     else
       true
+
   member self.run (curPlayer:Player) (board:Board) = 
     match self.isGameOver board with 
-    | true -> 0
+    | true -> self.nextPlayer (); !_playerIndex
     | false -> 
     let move = curPlayer.nextMove ()
     if move = "quit" then
@@ -114,7 +150,7 @@ type Game(p1:Player, p2:Player) =
 
 
 // Create a game
-let board = Chess.Board () // Create a board
+(*let board = Chess.Board () // Create a board
 // Pieces are kept in an array for easy testing
 let pieces = [|
   king (White) :> chessPiece;
@@ -130,4 +166,4 @@ Array.iter (printPiece board) pieces
 // Make moves
 board.move (1,1) (3,1) // Moves a piece from (1,1) to (3,1)
 printfn "%A" board
-Array.iter (printPiece board) pieces
+Array.iter (printPiece board) pieces*)
